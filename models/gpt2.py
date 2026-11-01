@@ -108,7 +108,7 @@ class GPT2Model(GPTPreTrainedModel):
     d, l, num_heads = c.n_embd, c.n_layer, c.n_head
     our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l,num_attention_heads=num_heads,
                                      intermediate_size=c.n_inner or d*4, vocab_size=c.vocab_size,
-                                     max_position_embeddings=c.n_positions, layer_norm_eps=c.layer_norm_epsilon,
+                                     max_position_embeddings=c.n_positions, layer_norm_eps=c.layer_norm_epsilon, pad_token_id=c.pad_token_id,
                                      hidden_dropout_prob=c.resid_pdrop, attention_probs_dropout_prob=c.attn_pdrop)).eval()
 
     # Load word and positional embeddings.
