@@ -72,7 +72,7 @@ class ParaphraseGPT(nn.Module):
 
     'Takes a batch of sentences and produces embeddings for them.'
     ### YOUR CODE HERE
-    raise NotImplementedError
+    return self.paraphrase_detection_head(self.gpt(input_ids, attention_mask)['last_token'])
 
 
 
@@ -111,7 +111,7 @@ def train(args):
 
   lr = args.lr
   optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
-  best_dev_acc = 0
+  best_dev_acc = -1
 
   # Run for the specified number of epochs.
   for epoch in range(args.epochs):
@@ -151,7 +151,7 @@ def train(args):
 def test(args):
   """Evaluate your model on the dev and test datasets; save the predictions to disk."""
   device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
-  saved = torch.load(args.filepath)
+  saved = torch.load(args.filepath, map_location=device, weights_only=False)
 
   model = ParaphraseGPT(saved['args'])
   model.load_state_dict(saved['model'])

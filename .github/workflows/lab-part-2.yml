@@ -1,0 +1,23 @@
+name: Lab Part 2 - downstream tasks
+on:
+  push:
+    branches: [edidada/part-2]
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+      - run: python optimizer_test.py
+      - run: python -m pytest tests -q
+      - run: python sanity_check.py

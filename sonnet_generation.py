@@ -61,7 +61,7 @@ class SonnetGPT(nn.Module):
     not just the distribution over next tokens for the last token!
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    return self.gpt.hidden_state_to_token(self.gpt(input_ids, attention_mask)['last_hidden_state'])
 
 
   def get_device(self):
@@ -69,7 +69,7 @@ class SonnetGPT(nn.Module):
       return param.device
 
   @torch.no_grad()
-  def generate(self, encoding, temperature=0.7, top_p=0.9, max_length=128):
+  def generate(self, encoding, temperature=0.7, top_p=0.9, max_length=128, top_k=0):
     """
     Generates an original sonnet using top-p sampling and softmax temperature.
 
@@ -77,14 +77,22 @@ class SonnetGPT(nn.Module):
     In particular, generating multiple sequences and choosing the best with beam search is one avenue. Top_k is another;
     there are many.
     """
+    if temperature <= 0 or not 0 < top_p <= 1 or max_length < 0 or top_k < 0:
+      raise ValueError('Invalid sampling parameters')
+    if encoding.ndim != 2 or encoding.shape[0] != 1 or encoding.shape[1] == 0:
+      raise ValueError('Generation requires one nonempty prompt')
     token_ids = encoding.to(self.get_device())
     attention_mask = torch.ones(token_ids.shape, dtype=torch.int64).to(self.get_device())
 
 
-    for _ in range(max_length):
+    for _ in range(min(max_length, self.gpt.config.max_position_embeddings - token_ids.shape[1])):
       # Forward pass to get logits
       logits_sequence = self.forward(token_ids, attention_mask)
       logits_last_token = logits_sequence[:, -1, :] / temperature  # Apply temperature scaling
+
+      if top_k:
+        threshold = torch.topk(logits_last_token, min(top_k, logits_last_token.shape[-1])).values[:, -1:]
+        logits_last_token = logits_last_token.masked_fill(logits_last_token < threshold, float('-inf'))
 
       # Convert logits to probabilities
       probs = torch.nn.functional.softmax(logits_last_token, dim=-1)
@@ -112,7 +120,7 @@ class SonnetGPT(nn.Module):
         [attention_mask, torch.ones((1, 1), dtype=torch.int64).to(self.get_device())], dim=1
       )
 
-    generated_output = self.tokenizer.decode(token_ids[0].cpu().numpy().tolist())[3:]
+    generated_output = self.tokenizer.decode(token_ids[0].cpu().numpy().tolist())
     return token_ids, generated_output
 
 
@@ -164,7 +172,7 @@ def train(args):
       optimizer.zero_grad()
       logits = model(b_ids, b_mask)
       logits = rearrange(logits[:, :-1].contiguous(), 'b t d -> (b t) d')  # Ignore the last prediction in the sequence.
-      labels = b_ids[:, 1:].contiguous().flatten()  # Ignore the first token to compose the labels.
+      labels = b_ids[:, 1:].masked_fill(b_mask[:, 1:] == 0, -100).contiguous().flatten()  # Ignore the first token to compose the labels.
       loss = F.cross_entropy(logits, labels, reduction='mean')
       loss.backward()
       optimizer.step()
