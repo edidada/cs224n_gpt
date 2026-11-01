@@ -13,7 +13,7 @@ from pathlib import Path
 import requests
 from hashlib import sha256
 from filelock import FileLock
-import importlib_metadata
+from importlib import metadata as importlib_metadata
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -358,3 +358,4 @@ def get_extended_attention_mask(attention_mask: Tensor, dtype) -> Tensor:
   extended_attention_mask = extended_attention_mask.to(dtype=dtype)  # fp16 compatibility
   extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
   return extended_attention_mask
+
