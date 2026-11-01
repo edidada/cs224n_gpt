@@ -7,7 +7,6 @@ import torch.nn.functional as F
 from transformers import GPT2Tokenizer
 from models.gpt2 import GPT2Model
 from optimizer import AdamW
-from datasets import SonnetsDataset, load_paraphrase_data, paraphrase_prompt
 parser=argparse.ArgumentParser(); parser.add_argument('--task',choices=['sst','cfimdb','paraphrase','sonnet'],required=True)
 a=parser.parse_args(); torch.set_num_threads(2)
 tokenizer=GPT2Tokenizer.from_pretrained('gpt2'); tokenizer.pad_token=tokenizer.eos_token
@@ -15,8 +14,10 @@ if a.task in ['sst','cfimdb']:
     with open(f'data/ids-{a.task}-train.csv',encoding='utf-8') as f: rows=list(csv.DictReader(f,delimiter='\t'))
     texts=[r['sentence'] for r in rows]; classes=5 if a.task=='sst' else 2
 elif a.task=='paraphrase':
+    from datasets import load_paraphrase_data, paraphrase_prompt
     rows=load_paraphrase_data('data/quora-train.csv'); texts=[paraphrase_prompt(x[0],x[1]) for x in rows]; classes=2
 else:
+    from datasets import SonnetsDataset
     rows=SonnetsDataset('data/sonnets.txt'); texts=[x[1] for x in rows]; classes=None
 # Probe low/median/high lengths from 256 deterministically spaced examples.
 indices=list(range(0,len(texts),max(1,len(texts)//256)))[:256]
