@@ -175,6 +175,7 @@ def load_data(filename, flag='train'):
 
 
 # Evaluate the model on dev examples.
+@torch.no_grad()
 def model_eval(dataloader, model, device):
   model.eval()  # Switch to eval model, will turn off randomness like dropout.
   y_true = []
@@ -205,6 +206,7 @@ def model_eval(dataloader, model, device):
 
 
 # Evaluate the model on test examples.
+@torch.no_grad()
 def model_test_eval(dataloader, model, device):
   model.eval()  # Switch to eval model, will turn off randomness like dropout.
   y_pred = []
@@ -395,7 +397,7 @@ if __name__ == "__main__":
     lr=args.lr,
     use_gpu=args.use_gpu,
     epochs=args.epochs,
-    batch_size=8,
+    batch_size=args.batch_size,
     hidden_dropout_prob=args.hidden_dropout_prob,
     train='data/ids-cfimdb-train.csv',
     dev='data/ids-cfimdb-dev.csv',
