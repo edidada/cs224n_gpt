@@ -3,6 +3,11 @@ on:
   push:
     branches: [edidada/part-2]
   workflow_dispatch:
+    inputs:
+      full_training:
+        type: boolean
+        default: false
+        description: Run full ten-epoch experiments
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -27,6 +32,7 @@ jobs:
           name: real-data-smoke
           path: results/
   full-training:
+    if: github.event_name == 'workflow_dispatch' && inputs.full_training
     strategy:
       fail-fast: false
       matrix:
@@ -68,3 +74,33 @@ jobs:
             results/
             predictions/
             *.pt
+  capacity:
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [paraphrase, sonnet]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+      - name: Runner hardware
+        run: |
+          lscpu
+          free -h
+          python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+      - run: python scripts/capacity_probe.py --task "${{ matrix.task }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capacity-${{ matrix.task }}
+          path: results/
