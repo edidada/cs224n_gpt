@@ -21,3 +21,43 @@ jobs:
       - run: python optimizer_test.py
       - run: python -m pytest tests -q
       - run: python sanity_check.py
+  full-training:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [last-linear-layer, full-model]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+      - name: Runner hardware
+        run: |
+          lscpu
+          free -h
+          python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+      - name: Full SST and CFIMDB training
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p results
+          lr=1e-3
+          if [ "${{ matrix.mode }}" = full-model ]; then lr=1e-5; fi
+          python classifier.py --fine-tune-mode "${{ matrix.mode }}" --epochs 10 --batch_size 1 --lr "$lr" 2>&1 | tee results/training.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-sentiment-${{ matrix.mode }}
+          path: |
+            results/
+            predictions/
+            *.pt
