@@ -80,4 +80,3 @@ for k in [0, 20]:
     Path(f'results/sonnet-top-k-{k}.txt').write_text(text,encoding='utf-8')
 Path('results/smoke.json').write_text(json.dumps(results,indent=2))
 print(json.dumps(results,indent=2))
-
