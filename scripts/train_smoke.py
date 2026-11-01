@@ -45,7 +45,7 @@ def classification(name,train,dev,classes):
 
 for name in ['sst','cfimdb']:
     def read(split):
-        with open(f'data/{name}-{split}.csv',encoding='utf-8') as f:
+        with open(f'data/ids-{name}-{split}.csv',encoding='utf-8') as f:
             return [(r['sentence'],int(r['sentiment'])) for r in csv.DictReader(f,delimiter='\t')]
     classification(name,read('train'),read('dev'),5 if name=='sst' else 2)
 
@@ -69,3 +69,4 @@ results['sonnet'] = dict(train_examples=1,steps=2,losses=losses,mode='full-backb
 Path('results').mkdir(exist_ok=True)
 Path('results/smoke.json').write_text(json.dumps(results,indent=2))
 print(json.dumps(results,indent=2))
+
