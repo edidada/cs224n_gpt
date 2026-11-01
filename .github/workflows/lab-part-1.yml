@@ -8,6 +8,19 @@ on:
         type: boolean
         default: false
         description: Run full ten-epoch experiments
+      runner_labels:
+        type: string
+        default: '["ubuntu-latest"]'
+        description: JSON runner labels for full training
+      accelerator:
+        type: choice
+        options: [cpu, cuda121]
+        default: cpu
+        description: PyTorch CPU or CUDA 12.1
+      epochs:
+        type: number
+        default: 10
+        description: Full training epochs
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -32,7 +45,7 @@ jobs:
       fail-fast: false
       matrix:
         mode: [last-linear-layer, full-model]
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(inputs.runner_labels || '["ubuntu-latest"]') }}
     timeout-minutes: 360
     env:
       OMP_NUM_THREADS: '2'
@@ -44,7 +57,14 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - name: Install training PyTorch
+        shell: bash
+        run: |
+          if [ "${{ inputs.accelerator }}" = cuda121 ]; then
+            pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+          else
+            pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          fi
       - run: pip install -r requirements.txt
       - name: Runner hardware
         run: |
@@ -56,9 +76,11 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p results
+          device_flag=""
+          if [ "${{ inputs.accelerator }}" = cuda121 ]; then device_flag="--use_gpu"; fi
           lr=1e-3
           if [ "${{ matrix.mode }}" = full-model ]; then lr=1e-5; fi
-          python classifier.py --fine-tune-mode "${{ matrix.mode }}" --epochs 10 --batch_size 1 --lr "$lr" 2>&1 | tee results/training.log
+          python classifier.py --fine-tune-mode "${{ matrix.mode }}" --epochs "${{ inputs.epochs || 10 }}" $device_flag --batch_size 1 --lr "$lr" 2>&1 | tee results/training.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
