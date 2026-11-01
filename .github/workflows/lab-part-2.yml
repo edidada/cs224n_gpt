@@ -26,3 +26,45 @@ jobs:
         with:
           name: real-data-smoke
           path: results/
+  full-training:
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [paraphrase, sonnet]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+      - name: Runner hardware
+        run: |
+          lscpu
+          free -h
+          python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+      - name: Full downstream training
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p results
+          if [ "${{ matrix.task }}" = paraphrase ]; then
+            python paraphrase_detection.py --epochs 10 --batch_size 1 --lr 1e-5 2>&1 | tee results/training.log
+          else
+            python sonnet_generation.py --epochs 10 --batch_size 1 --lr 1e-5 --temperature 0.8 --top_p 0.9 --top_k 20 2>&1 | tee results/training.log
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-${{ matrix.task }}
+          path: |
+            results/
+            predictions/
+            *.pt
