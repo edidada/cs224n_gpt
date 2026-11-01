@@ -66,7 +66,18 @@ for _ in range(2):
     loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(),1); opt.step()
     losses.append(loss.item())
 results['sonnet'] = dict(train_examples=1,steps=2,losses=losses,mode='full-backbone smoke')
+from sonnet_generation import SonnetGPT
+sampler = SonnetGPT.__new__(SonnetGPT)
+torch.nn.Module.__init__(sampler)
+sampler.gpt = model.eval()
+sampler.tokenizer = tokenizer
+prompt = SonnetsDataset('data/sonnets_held_out_dev.txt')[0][1]
+encoding = tokenizer(prompt,return_tensors='pt')['input_ids']
 Path('results').mkdir(exist_ok=True)
+for k in [0, 20]:
+    torch.manual_seed(11711)
+    _, text = sampler.generate(encoding,temperature=0.8,top_p=0.9,top_k=k,max_length=32)
+    Path(f'results/sonnet-top-k-{k}.txt').write_text(text,encoding='utf-8')
 Path('results/smoke.json').write_text(json.dumps(results,indent=2))
 print(json.dumps(results,indent=2))
 
