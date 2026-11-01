@@ -7,3 +7,8 @@ __pycache__/
 *.pth
 .venv/
 results/
+*pretest
+*~
+*.pkl
+.idea/
+out/
