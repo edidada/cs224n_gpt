@@ -8,6 +8,7 @@ from utils import model_size_to_params
 
 
 
+@torch.no_grad()
 def test_gpt2(model_size='gpt2'):
   sent_ids = torch.tensor([[101, 7592, 2088, 102, 0, 0, 0, 0],
                            [101, 7592, 15756, 2897, 2005, 17953, 2361, 102]])
