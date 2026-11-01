@@ -26,10 +26,12 @@ class AdamW(Optimizer):
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, correct_bias=correct_bias)
         super().__init__(params, defaults)
 
+    @torch.no_grad()
     def step(self, closure: Callable = None):
         loss = None
         if closure is not None:
-            loss = closure()
+            with torch.enable_grad():
+                loss = closure()
 
         for group in self.param_groups:
             for p in group["params"]:
@@ -61,7 +63,19 @@ class AdamW(Optimizer):
                 ###
                 ###       Refer to the default project handout for more details.
                 ### YOUR CODE HERE
-                raise NotImplementedError
+                if not state:
+                    state['step'] = 0
+                    state['exp_avg'] = torch.zeros_like(p)
+                    state['exp_avg_sq'] = torch.zeros_like(p)
+                state['step'] += 1
+                beta1, beta2 = group['betas']
+                mean, variance = state['exp_avg'], state['exp_avg_sq']
+                mean.mul_(beta1).add_(grad, alpha=1 - beta1)
+                variance.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+                if group['correct_bias']:
+                    alpha *= math.sqrt(1 - beta2 ** state['step']) / (1 - beta1 ** state['step'])
+                p.addcdiv_(mean, variance.sqrt().add_(group['eps']), value=-alpha)
+                p.add_(p, alpha=-group['lr'] * group['weight_decay'])
 
 
         return loss

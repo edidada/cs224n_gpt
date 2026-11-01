@@ -1,0 +1,9 @@
+transformers==4.46.3
+tokenizers==0.20.3
+einops==0.8.0
+numpy==1.26.4
+scikit-learn==1.6.1
+tqdm==4.67.1
+requests==2.32.3
+sacrebleu==2.5.1
+pytest==8.3.5

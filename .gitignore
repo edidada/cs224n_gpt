@@ -1,7 +1,9 @@
-*pretest
-*~
+.DS_Store
+._*
+__pycache__/
+.pytest_cache/
 *.pyc
 *.pt
-*.pkl
-.idea/
-out/
+*.pth
+.venv/
+results/

@@ -47,19 +47,9 @@ class GPT2Model(GPTPreTrainedModel):
     input_shape = input_ids.size()
     seq_length = input_shape[1]
 
-    inputs_embeds = None
-
-    ### YOUR CODE HERE
-    raise NotImplementedError
-
-
-    pos_ids = self.position_ids[:, :seq_length]
-    pos_embeds = None
-
-    ### TODO: Use pos_ids to get position embedding from self.pos_embedding into pos_embeds.
-    ###       Then, add two embeddings together; then apply dropout and return.
-    ### YOUR CODE HERE
-    raise NotImplementedError
+    if seq_length == 0 or seq_length > self.config.max_position_embeddings:
+      raise ValueError('Sequence length must be within the position embedding range')
+    return self.embed_dropout(self.word_embedding(input_ids) + self.pos_embedding(self.position_ids[:, :seq_length]))
 
 
   def encode(self, hidden_states, attention_mask):
@@ -94,7 +84,7 @@ class GPT2Model(GPTPreTrainedModel):
 
     # Get the hidden state of the final token.
     last_non_pad_idx = attention_mask.sum(dim=1) - 1  # Subtract 1 to get last index
-    last_token = sequence_output[torch.arange(sequence_output.shape[0]), last_non_pad_idx]
+    last_token = sequence_output[torch.arange(sequence_output.shape[0], device=input_ids.device), last_non_pad_idx]
 
     return {'last_hidden_state': sequence_output, 'last_token': last_token}
 
@@ -105,15 +95,21 @@ class GPT2Model(GPTPreTrainedModel):
 
       return hidden_state(s) * E^T
     """
-    ### YOUR CODE HERE
-    raise NotImplementedError
+    return torch.nn.functional.linear(hidden_state, self.word_embedding.weight)
 
 
   @classmethod
-  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12):
-    gpt_model = OpenAIGPT2Model.from_pretrained(model).eval()
+  def from_pretrained(cls, model='gpt2', d=None, l=None, num_heads=None):
+    return cls.from_hf_model(OpenAIGPT2Model.from_pretrained(model).eval())
+
+  @classmethod
+  def from_hf_model(cls, gpt_model):
+    c = gpt_model.config
+    d, l, num_heads = c.n_embd, c.n_layer, c.n_head
     our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l,num_attention_heads=num_heads,
-                                     intermediate_size=d*3)).eval()
+                                     intermediate_size=c.n_inner or d*4, vocab_size=c.vocab_size,
+                                     max_position_embeddings=c.n_positions, layer_norm_eps=c.layer_norm_epsilon,
+                                     hidden_dropout_prob=c.resid_pdrop, attention_probs_dropout_prob=c.attn_pdrop)).eval()
 
     # Load word and positional embeddings.
     our_model.word_embedding.load_state_dict(gpt_model.wte.state_dict())
